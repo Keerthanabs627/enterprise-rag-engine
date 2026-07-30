@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Distributed Search & RAG Engine</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Enterprise Search & RAG Engine</h1>
+            <p>Asynchronous Vector Search & Streaming Knowledge Engine</p>
+        </header>
+
+        <main class="grid">
+            <section class="card">
+                <h2>Document Ingestion Queue</h2>
+                <div class="upload-box">
+                    <input type="file" id="fileInput" accept=".pdf,.txt">
+                    <button onclick="uploadFile()">Upload & Index</button>
+                </div>
+                <div id="uploadStatus"></div>
+                <h3>Ingested Archives</h3>
+                <ul id="documentList"></ul>
+            </section>
+
+            <section class="card">
+                <h2>Vector Query Pipeline</h2>
+                <div class="query-box">
+                    <input type="text" id="queryInput" placeholder="Ask a natural-language query...">
+                    <button onclick="submitQuery()">Execute Search</button>
+                </div>
+                <h3>Retrieved Context Sources</h3>
+                <div id="sourcesContainer" class="sources-box">No active retrieval query.</div>
+                <h3>Streaming Response</h3>
+                <div id="responseContainer" class="response-box">Awaiting query execution...</div>
+            </section>
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
