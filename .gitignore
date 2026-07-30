@@ -25,3 +25,5 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+# Local Qdrant vector database
+qdrant_storage/
