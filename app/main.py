@@ -32,7 +32,7 @@ from .worker import process_document_background
 
 
 # ============================================================
-# 1. LOAD ENVIRONMENT VARIABLES
+# ENVIRONMENT
 # ============================================================
 
 load_dotenv()
@@ -41,18 +41,18 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 # ============================================================
-# 2. CREATE FASTAPI APPLICATION
+# FASTAPI
 # ============================================================
 
 app = FastAPI(
     title="Enterprise Search & RAG Engine",
-    description="Enterprise document ingestion, search and RAG platform",
-    version="1.0.0",
+    description="Enterprise document ingestion, semantic search and RAG platform",
+    version="2.1.0",
 )
 
 
 # ============================================================
-# 3. PROJECT PATHS
+# PATHS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -60,18 +60,28 @@ STATIC_DIR = BASE_DIR / "static"
 
 
 # ============================================================
-# 4. GEMINI CLIENT
+# GEMINI
 # ============================================================
 
 if GEMINI_API_KEY:
-    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    client = genai.Client(
+        api_key=GEMINI_API_KEY
+    )
+
+    print("Gemini client configured.")
+
 else:
+
     client = None
-    print("WARNING: GEMINI_API_KEY is not configured.")
+
+    print(
+        "WARNING: GEMINI_API_KEY is not configured."
+    )
 
 
 # ============================================================
-# 5. CORS
+# CORS
 # ============================================================
 
 app.add_middleware(
@@ -84,26 +94,29 @@ app.add_middleware(
 
 
 # ============================================================
-# 6. STATIC FILES
+# STATIC FILES
 # ============================================================
 
 if STATIC_DIR.exists():
 
     app.mount(
         "/static",
-        StaticFiles(directory=str(STATIC_DIR)),
+        StaticFiles(
+            directory=str(STATIC_DIR)
+        ),
         name="static",
     )
 
 else:
 
     print(
-        f"WARNING: Static directory does not exist: {STATIC_DIR}"
+        f"WARNING: Static directory missing: "
+        f"{STATIC_DIR}"
     )
 
 
 # ============================================================
-# 7. REQUEST MODELS
+# REQUEST MODEL
 # ============================================================
 
 class QueryRequest(BaseModel):
@@ -111,26 +124,36 @@ class QueryRequest(BaseModel):
 
 
 # ============================================================
-# 8. HOME PAGE
+# HOME
 # ============================================================
 
-@app.get("/", response_class=HTMLResponse)
+@app.get(
+    "/",
+    response_class=HTMLResponse
+)
 async def serve_index():
 
-    index_path = STATIC_DIR / "index.html"
+    index_path = (
+        STATIC_DIR / "index.html"
+    )
 
     if not index_path.exists():
 
         return HTMLResponse(
-            content="<h1>index.html missing in static/ folder!</h1>",
+            content=(
+                "<h1>index.html missing "
+                "from static directory.</h1>"
+            ),
             status_code=404,
         )
 
-    return FileResponse(index_path)
+    return FileResponse(
+        index_path
+    )
 
 
 # ============================================================
-# 9. HEALTH CHECK
+# HEALTH
 # ============================================================
 
 @app.get("/api/health")
@@ -138,13 +161,17 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "service": "Enterprise Search & RAG Engine",
-        "gemini_configured": client is not None,
+        "service": (
+            "Enterprise Search & RAG Engine"
+        ),
+        "gemini_configured": (
+            client is not None
+        ),
     }
 
 
 # ============================================================
-# 10. DOCUMENT UPLOAD
+# UPLOAD DOCUMENT
 # ============================================================
 
 @app.post("/api/documents/upload")
@@ -162,10 +189,10 @@ async def upload_document(
 
     try:
 
-        # Generate unique document ID
-        doc_id = str(uuid.uuid4())
+        doc_id = str(
+            uuid.uuid4()
+        )
 
-        # Read uploaded file
         file_bytes = await file.read()
 
         if not file_bytes:
@@ -175,13 +202,11 @@ async def upload_document(
                 detail="Uploaded file is empty.",
             )
 
-        # Add document metadata to database
         db.add_document(
             doc_id,
             file.filename,
         )
 
-        # Process document in background
         background_tasks.add_task(
             process_document_background,
             file_bytes,
@@ -190,7 +215,9 @@ async def upload_document(
         )
 
         return {
-            "message": "Document queued for asynchronous processing",
+            "message": (
+                "Document queued for processing"
+            ),
             "document_id": doc_id,
             "filename": file.filename,
             "status": "processing",
@@ -199,18 +226,23 @@ async def upload_document(
     except HTTPException:
         raise
 
-    except Exception as e:
+    except Exception as error:
 
-        print(f"Document upload error: {e}")
+        print(
+            f"Document upload error: "
+            f"{error}"
+        )
 
         raise HTTPException(
             status_code=500,
-            detail="Unable to upload document.",
+            detail=(
+                "Unable to upload document."
+            ),
         )
 
 
 # ============================================================
-# 11. LIST DOCUMENTS
+# LIST DOCUMENTS
 # ============================================================
 
 @app.get("/api/documents")
@@ -218,24 +250,28 @@ async def list_documents():
 
     try:
 
-        documents = db.get_all_documents()
-
         return {
-            "documents": documents
+            "documents":
+                db.get_all_documents()
         }
 
-    except Exception as e:
+    except Exception as error:
 
-        print(f"Document listing error: {e}")
+        print(
+            f"Document listing error: "
+            f"{error}"
+        )
 
         raise HTTPException(
             status_code=500,
-            detail="Unable to retrieve documents.",
+            detail=(
+                "Unable to retrieve documents."
+            ),
         )
 
 
 # ============================================================
-# 12. GEMINI GENERATION FUNCTION
+# GEMINI GENERATION
 # ============================================================
 
 async def generate_with_gemini(
@@ -247,199 +283,165 @@ async def generate_with_gemini(
 
         return None
 
-    for attempt in range(max_retries):
+    for attempt in range(
+        max_retries
+    ):
 
         try:
 
             print(
-                f"Gemini request attempt "
-                f"{attempt + 1}/{max_retries}"
+                "Gemini request attempt "
+                f"{attempt + 1}/"
+                f"{max_retries}"
             )
 
-            # generate_content() is synchronous.
-            # Running it in a thread prevents blocking
-            # FastAPI's async event loop.
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model="gemini-3.5-flash-lite",
-                contents=prompt,
+            response = (
+                await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=(
+                        "gemini-3.5-flash-lite"
+                    ),
+                    contents=prompt,
+                )
             )
 
-            if response and response.text:
-
-                return response.text.strip()
-
-            print("Gemini returned an empty response.")
-
-        except Exception as e:
-
-            print(
-                f"Gemini request failed "
-                f"(attempt {attempt + 1}/{max_retries})"
-            )
-
-            print(str(e))
-
-            # Don't sleep after final attempt
-            if attempt < max_retries - 1:
-
-                # Exponential backoff:
-                #
-                # failure 1 -> wait 1 sec
-                # failure 2 -> wait 2 sec
-
-                wait_time = 2 ** attempt
+            if (
+                response
+                and response.text
+            ):
 
                 print(
-                    f"Retrying in {wait_time} second(s)..."
+                    "Gemini response received."
                 )
 
-                await asyncio.sleep(wait_time)
+                return (
+                    response.text.strip()
+                )
+
+            print(
+                "Gemini returned empty response."
+            )
+
+        except Exception as error:
+
+            print(
+                "Gemini request failed "
+                f"({attempt + 1}/"
+                f"{max_retries})"
+            )
+
+            print(error)
+
+            if (
+                attempt
+                < max_retries - 1
+            ):
+
+                wait_time = (
+                    2 ** attempt
+                )
+
+                print(
+                    "Retrying Gemini in "
+                    f"{wait_time} second(s)..."
+                )
+
+                await asyncio.sleep(
+                    wait_time
+                )
 
     return None
 
 
 # ============================================================
-# 13. STREAMING RAG QUERY
+# BUILD RAG PROMPT
 # ============================================================
 
-@app.post("/api/query/stream")
-async def query_stream(request: QueryRequest):
+def build_rag_prompt(
+    query: str,
+    search_results: list,
+):
 
-    query = request.query.strip()
+    context_parts = []
 
-    if not query:
+    for index, result in enumerate(
+        search_results,
+        start=1,
+    ):
 
-        raise HTTPException(
-            status_code=400,
-            detail="Query cannot be empty.",
+        document = result.get(
+            "document",
+            "Unknown document",
         )
 
-    # --------------------------------------------------------
-    # SEARCH DOCUMENTS
-    # --------------------------------------------------------
-
-    try:
-
-        search_results = search_engine.search(query)
-
-    except Exception as e:
-
-        print(f"Search error: {e}")
-
-        raise HTTPException(
-            status_code=500,
-            detail="Search engine failed.",
+        page = result.get(
+            "page"
         )
 
+        text = result.get(
+            "text",
+            "",
+        )
 
-    # --------------------------------------------------------
-    # SSE EVENT GENERATOR
-    # --------------------------------------------------------
+        score = result.get(
+            "score",
+            0,
+        )
 
-    async def event_generator():
+        if page is not None:
 
-        # ====================================================
-        # SEND SOURCES TO FRONTEND
-        # ====================================================
-
-        try:
-
-            sources_json = json.dumps(
-                search_results,
-                ensure_ascii=False,
+            source_label = (
+                f"{document}, page {page}"
             )
 
-            yield (
-                f"event: sources\n"
-                f"data: {sources_json}\n\n"
-            )
+        else:
 
-        except Exception as e:
+            source_label = document
 
-            print(f"Source serialization error: {e}")
+        context_parts.append(
+            f"""
+SOURCE {index}
+Document: {source_label}
+Similarity Score: {score}
 
-            yield (
-                "event: sources\n"
-                "data: []\n\n"
-            )
+{text}
+""".strip()
+        )
 
+    context = (
+        "\n\n"
+        "-----------------------------"
+        "\n\n"
+    ).join(
+        context_parts
+    )
 
-        await asyncio.sleep(0.1)
+    return f"""
+You are an enterprise knowledge assistant.
 
+Answer the user's question using ONLY the retrieved
+document context below.
 
-        # ====================================================
-        # NO SEARCH RESULTS
-        # ====================================================
+RULES:
 
-        if not search_results:
-
-            response_text = (
-                "I could not find relevant information "
-                "in the uploaded documents."
-            )
-
-
-        # ====================================================
-        # GEMINI AVAILABLE
-        # ====================================================
-
-        elif client:
-
-            # Build retrieved context
-            context_parts = []
-
-            for result in search_results:
-
-                document = result.get(
-                    "document",
-                    "Unknown document",
-                )
-
-                text = result.get(
-                    "text",
-                    "",
-                )
-
-                context_parts.append(
-                    f"Source [{document}]:\n{text}"
-                )
-
-
-            context = "\n\n---\n\n".join(
-                context_parts
-            )
-
-
-            # =================================================
-            # RAG PROMPT
-            # =================================================
-
-            prompt = f"""
-You are an enterprise document assistant.
-
-Your job is to answer the user's question using ONLY
-the retrieved document context provided below.
-
-Rules:
-
-1. Use only information found in the context.
+1. Use only information contained in the retrieved context.
 
 2. Do not invent facts.
 
-3. If the context does not contain enough information,
-say:
+3. If the retrieved context does not provide enough
+information to answer the question, respond:
 
 "I could not find enough information in the uploaded documents."
 
-4. Give a concise and clear answer.
+4. Give a clear and concise answer.
 
-5. When possible, mention which document supports the answer.
+5. When referring to supporting information, mention the
+document and page number when available.
 
-6. Do not claim information that is not present in the context.
+6. Do not use outside knowledge to fill missing information.
 
 
-RETRIEVED DOCUMENT CONTEXT:
+RETRIEVED CONTEXT:
 
 {context}
 
@@ -450,84 +452,276 @@ USER QUESTION:
 
 
 ANSWER:
-"""
+""".strip()
 
 
-            # =================================================
-            # CALL GEMINI
-            # =================================================
+# ============================================================
+# SSE HELPER
+# ============================================================
 
-            response_text = await generate_with_gemini(
-                prompt=prompt,
-                max_retries=3,
-            )
+def create_sse_event(
+    data,
+    event=None,
+):
 
+    if not isinstance(
+        data,
+        str,
+    ):
 
-            # =================================================
-            # GEMINI FAILED
-            # =================================================
+        data = json.dumps(
+            data,
+            ensure_ascii=False,
+        )
 
-            if response_text is None:
+    lines = []
 
-                response_text = (
-                    "AI generation is temporarily unavailable. "
-                    "The relevant document sources were retrieved "
-                    "successfully. Please try again shortly."
-                )
+    if event:
 
+        lines.append(
+            f"event: {event}"
+        )
 
-        # ====================================================
-        # GEMINI API KEY MISSING
-        # ====================================================
+    # SSE requires each line of multiline
+    # data to have its own data: prefix.
 
-        else:
+    data_lines = (
+        data.splitlines()
+        or [""]
+    )
 
-            context = " ".join(
-                result.get("text", "")
-                for result in search_results
-            )
+    for line in data_lines:
 
-            response_text = (
-                "Gemini API is not configured. "
-                "However, the search engine successfully "
-                "retrieved this context: "
-                + context[:500]
-            )
+        lines.append(
+            f"data: {line}"
+        )
 
-
-        # ====================================================
-        # STREAM RESPONSE TO FRONTEND
-        # ====================================================
-
-        words = response_text.split()
-
-        for word in words:
-
-            yield f"data: {word} \n\n"
-
-            await asyncio.sleep(0.03)
+    return (
+        "\n".join(lines)
+        + "\n\n"
+    )
 
 
-        # ====================================================
-        # FINISH STREAM
-        # ====================================================
+# ============================================================
+# RAG STREAM ENDPOINT
+# ============================================================
 
-        yield (
-            "event: end\n"
-            "data: [DONE]\n\n"
+@app.post("/api/query/stream")
+async def query_stream(
+    request: QueryRequest
+):
+
+    query = (
+        request.query.strip()
+    )
+
+    if not query:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Query cannot be empty.",
         )
 
 
-    # --------------------------------------------------------
-    # RETURN SSE STREAM
-    # --------------------------------------------------------
+    # ========================================================
+    # RETRIEVAL
+    # ========================================================
+
+    try:
+
+        search_results = (
+            await asyncio.to_thread(
+                search_engine.search,
+                query,
+            )
+        )
+
+        print(
+            f"Retrieved "
+            f"{len(search_results)} "
+            f"source(s)."
+        )
+
+    except Exception as error:
+
+        print(
+            f"Search error: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Search engine failed.",
+        )
+
+
+    # ========================================================
+    # STREAM GENERATOR
+    # ========================================================
+
+    async def event_generator():
+
+        try:
+
+            # -----------------------------------------------
+            # 1. SEND SOURCES
+            # -----------------------------------------------
+
+            yield create_sse_event(
+                search_results,
+                event="sources",
+            )
+
+            await asyncio.sleep(
+                0.05
+            )
+
+
+            # -----------------------------------------------
+            # 2. NO RELEVANT RESULTS
+            # -----------------------------------------------
+
+            if not search_results:
+
+                answer = (
+                    "I could not find relevant "
+                    "information in the uploaded "
+                    "documents."
+                )
+
+
+            # -----------------------------------------------
+            # 3. GEMINI AVAILABLE
+            # -----------------------------------------------
+
+            elif client is not None:
+
+                prompt = (
+                    build_rag_prompt(
+                        query,
+                        search_results,
+                    )
+                )
+
+                answer = (
+                    await generate_with_gemini(
+                        prompt,
+                        max_retries=3,
+                    )
+                )
+
+                if not answer:
+
+                    answer = (
+                        "AI generation is temporarily "
+                        "unavailable. Relevant document "
+                        "sources were retrieved successfully."
+                    )
+
+
+            # -----------------------------------------------
+            # 4. GEMINI NOT CONFIGURED
+            # -----------------------------------------------
+
+            else:
+
+                answer = (
+                    "Gemini API is not configured. "
+                    "The retrieval engine successfully "
+                    "found relevant document sources."
+                )
+
+
+            # -----------------------------------------------
+            # 5. STREAM ANSWER
+            # -----------------------------------------------
+
+            print(
+                f"Streaming answer "
+                f"({len(answer)} characters)."
+            )
+
+            # Stream chunks rather than individual words.
+            # This preserves spaces and punctuation.
+
+            chunk_size = 40
+
+            for start in range(
+                0,
+                len(answer),
+                chunk_size,
+            ):
+
+                chunk = answer[
+                    start:
+                    start + chunk_size
+                ]
+
+                yield create_sse_event(
+                    chunk,
+                    event="token",
+                )
+
+                await asyncio.sleep(
+                    0.02
+                )
+
+
+            # -----------------------------------------------
+            # 6. END
+            # -----------------------------------------------
+
+            yield create_sse_event(
+                "[DONE]",
+                event="end",
+            )
+
+            print(
+                "Streaming response completed."
+            )
+
+
+        except asyncio.CancelledError:
+
+            print(
+                "Client disconnected "
+                "from streaming response."
+            )
+
+            raise
+
+
+        except Exception as error:
+
+            print(
+                f"Streaming error: "
+                f"{error}"
+            )
+
+            yield create_sse_event(
+                (
+                    "An error occurred while "
+                    "generating the answer."
+                ),
+                event="token",
+            )
+
+            yield create_sse_event(
+                "[DONE]",
+                event="end",
+            )
+
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
+            "Cache-Control":
+                "no-cache",
+
+            "Connection":
+                "keep-alive",
+
+            "X-Accel-Buffering":
+                "no",
         },
     )
