@@ -8,3 +8,4 @@ pypdf
 python-multipart
 jinja2
 google-genai
+qdrant-client
